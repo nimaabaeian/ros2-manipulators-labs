@@ -12,7 +12,7 @@ Course link: https://www.udemy.com/course/robotics-and-ros-2-learn-by-doing-mani
 I am documenting my progress in small, practical milestones.
 
 - [x] **Step 1** — Simple publishers in C++ and Python
-- [ ] **Step 2** — _(to be added)_
+- [x] **Step 2** — Robot model in URDF/Xacro (`arduinobot_description`)
 - [ ] **Step 3** — _(to be added)_
 - [ ] **Step 4** — _(to be added)_
 
@@ -84,3 +84,47 @@ ros2 topic echo /chatter
 ### Notes / Reflection
 - C++ and Python implementations follow the same ROS 2 communication concept.
 - The main difference is syntax and package setup (`CMakeLists.txt` vs `setup.py`).
+
+---
+
+## Step 2 — Robot Description in URDF/Xacro (`arduinobot_description`)
+
+### Goal
+Create the Arduinobot kinematic model using URDF/Xacro so it can be visualized and used in simulation/planning workflows.
+
+### What I used
+- **Description package:** `arduinobot_description`
+- **Main model file:** `src/arduinobot_description/urdf/arduinobot.urdf.xacro`
+- **Meshes:** `src/arduinobot_description/meshes/*.STL`
+
+### Model highlights
+- Defined reusable Xacro properties (`PI`, `effort`, `velocity`)
+- Added links: `world`, `base_link`, `base_plate`, `forward_drive_arm`, `horizontal_arm`, `claw_support`, `gripper_right`, `gripper_left`
+- Added joints: one fixed world joint, revolute arm joints (`joint_1` to `joint_3`), fixed wrist support joint, and gripper joints (`joint_4`, `joint_5`)
+- Added gripper mimic behavior with `<mimic joint="joint_4" multiplier="-1"/>`
+
+### Build
+From workspace root:
+
+```bash
+cd /home/nima/arduinobot_ws
+colcon build
+```
+
+### Source environment
+
+```bash
+source /opt/ros/$ROS_DISTRO/setup.bash
+source /home/nima/arduinobot_ws/install/setup.bash
+```
+
+### Visualize the URDF/Xacro model
+
+```bash
+ros2 launch urdf_tutorial display.launch.py model:=/home/nima/arduinobot_ws/src/arduinobot_description/urdf/arduinobot.urdf.xacro
+```
+
+### What I learned in Step 2
+- How to structure a robot model with links and joints in URDF/Xacro
+- How to use Xacro properties to keep limits and constants maintainable
+- How mimic joints simplify synchronized gripper motion
