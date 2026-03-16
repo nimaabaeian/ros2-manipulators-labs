@@ -17,6 +17,7 @@ I am documenting my progress in small, practical milestones.
 - [x] **Step 4** — RViz visualization with a custom launch file
 - [x] **Step 5** — Add RGB camera link/joint to the URDF model
 - [x] **Step 6** — Add collision/inertial properties to URDF and launch robot in Gazebo (Gz Sim)
+- [x] **Step 7** — Simulate an RGB camera sensor in Gazebo and stream images to ROS 2
 
 ---
 
@@ -369,3 +370,123 @@ ros2 launch arduinobot_description gazebo.launch.py
 - How to write a ROS 2 launch file that starts Gz Sim, spawns a robot from a topic, and bridges clock
 - How `GZ_SIM_RESOURCE_PATH` is used to help Gazebo locate mesh files
 - How `ros_gz_bridge` maps Gazebo Transport message types to ROS 2 message types
+
+---
+
+## Step 7 — Simulate RGB Camera Sensor in Gazebo (`arduinobot_description`)
+
+### Goal
+Activate Gazebo's camera sensor simulation on the `rgb_camera` link so it publishes a live video stream that can be consumed by ROS 2 nodes and visualized in RViz2.
+
+### What I used
+- **Package:** `arduinobot_description`
+- **URDF/Xacro model:** `src/arduinobot_description/urdf/arduinobot.urdf.xacro`
+- **Launch files:** `src/arduinobot_description/launch/gazebo.launch.py`, `src/arduinobot_description/launch/display.launch.py`
+
+### URDF changes
+
+**Sensors system plugin** — a world-level `<gazebo>` block loads the Gz Sim sensors system so Gazebo actually renders and publishes sensor data:
+```xml
+<gazebo>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+        <render_engine>ogre2</render_engine>
+    </plugin>
+</gazebo>
+```
+
+**Camera sensor** — a link-level `<gazebo reference="rgb_camera">` block configures the simulated Raspberry Pi Camera 3:
+```xml
+<gazebo reference="rgb_camera">
+    <sensor name="camera" type="camera">
+        <camera name="camera">
+            <horizontal_fov>1.15</horizontal_fov>
+            <image>
+                <width>2304</width>
+                <height>1296</height>
+                <format>RGB_INT8</format>
+            </image>
+            <clip>
+                <near>0.1</near>
+                <far>100</far>
+            </clip>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+        <visualize>true</visualize>
+        <topic>image_raw</topic>
+        <gz_frame_id>/rgb_camera</gz_frame_id>
+    </sensor>
+</gazebo>
+```
+
+Camera parameters match the real Raspberry Pi Camera 3 hardware:
+| Parameter | Value |
+|---|---|
+| Resolution | 2304 × 1296 |
+| FPS | 30 |
+| Horizontal FoV | 1.15 rad (66°) |
+
+### `gazebo.launch.py` changes
+Two additional topics bridged from Gazebo Transport to ROS 2:
+```python
+gz_ros2_bridge = Node(
+    package = "ros_gz_bridge",
+    executable="parameter_bridge",
+    arguments=[
+        "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
+        "/image_raw@sensor_msgs/msg/Image[gz.msgs.Image",
+        "/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
+    ]
+)
+```
+
+### `display.launch.py` changes
+RViz2 is now started with `use_sim_time: True` so its clock stays in sync with Gazebo:
+```python
+rviz_node = Node(
+    package="rviz2",
+    executable="rviz2",
+    name="rviz2",
+    output="screen",
+    arguments=["-d", os.path.join(...)],
+    parameters=[{"use_sim_time": True}]
+)
+```
+
+### Build
+```bash
+cd ~/arduinobot_ws
+colcon build --packages-select arduinobot_description
+```
+
+### Source environment
+```bash
+source /opt/ros/$ROS_DISTRO/setup.bash
+source ~/arduinobot_ws/install/setup.bash
+```
+
+### Launch Gazebo simulation
+```bash
+ros2 launch arduinobot_description gazebo.launch.py
+```
+
+### Visualize the camera stream in RViz2
+In a second terminal:
+```bash
+ros2 launch arduinobot_description display.launch.py
+```
+Inside RViz2:
+1. Set `Fixed Frame` → `base_link`
+2. Click **Add** → **By topic** → `/image_raw` → **Image** → **OK**
+
+Verify the topic is streaming at ~30 Hz:
+```bash
+ros2 topic hz /image_raw
+```
+
+### What I learned in Step 7
+- How Gazebo's `gz-sim-sensors-system` plugin enables actual sensor simulation (without it sensors produce no output)
+- How to configure a simulated camera with a specific resolution, FoV, FPS, and topic name using the `<gazebo>` and `<sensor>` URDF tags
+- How to bridge `sensor_msgs/Image` and `sensor_msgs/CameraInfo` from Gazebo Transport to ROS 2 using `ros_gz_bridge`
+- Why `use_sim_time: True` must be set on RViz2 when running alongside a Gazebo simulation
+- How to add an Image display in RViz2 and subscribe to a camera topic
