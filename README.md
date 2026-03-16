@@ -15,6 +15,7 @@ I am documenting my progress in small, practical milestones.
 - [x] **Step 2** — Robot model in URDF/Xacro (`arduinobot_description`)
 - [x] **Step 3** — Simple parameter in C++ and Python
 - [x] **Step 4** — RViz visualization with a custom launch file
+- [x] **Step 5** — Add RGB camera link/joint to the URDF model
 
 ---
 
@@ -264,3 +265,41 @@ ros2 launch arduinobot_description display.launch.py model:=/path/to/your.urdf.x
 - How to use `joint_state_publisher_gui` to interactively control joints
 - How to launch RViz2 with a saved configuration file
 - How to install `launch` and `rviz` directories via `CMakeLists.txt`
+
+---
+
+## Step 5 — Assignment: Add RGB Camera to URDF (`arduinobot_description`)
+
+### Goal
+Extend the robot model by adding an RGB camera as a new link and connecting it with a new joint.
+
+### Prerequisite check
+Before starting, validate the existing model is working:
+
+```bash
+source /opt/ros/$ROS_DISTRO/setup.bash
+source /home/nima/arduinobot_ws/install/setup.bash
+ros2 launch arduinobot_description display.launch.py
+```
+
+### Configuration
+- Added mesh: `src/arduinobot_description/meshes/pi_camera.STL`
+
+### Assignment summary
+- Added new link: `rgb_camera` using `pi_camera.STL`
+- Added new joint: `rgb_camera_joint` connecting `base_link` to `rgb_camera`
+- Used a **fixed** joint (camera is rigidly attached to the robot structure)
+- Set camera link transform from `base_link` to approximately:
+  - `xyz="0 0.40 0.18"`
+  - `rpy="0 1.0 1.57"`
+- Tuned the mesh pose inside the `rgb_camera` visual to center the camera optic:
+  - `<origin rpy="0 0 -${PI / 2}" xyz="-0.135 0.12 0"/>`
+
+### Files updated in this step
+- `src/arduinobot_description/urdf/arduinobot.urdf.xacro`
+- `src/arduinobot_description/meshes/pi_camera.STL`
+
+### What I learned in Step 5
+- How to extend a URDF model with additional sensor links
+- When to use a fixed joint for mounted sensors
+- How to iteratively tune `<origin>` values for correct mesh alignment in RViz2
