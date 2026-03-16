@@ -16,6 +16,7 @@ I am documenting my progress in small, practical milestones.
 - [x] **Step 3** — Simple parameter in C++ and Python
 - [x] **Step 4** — RViz visualization with a custom launch file
 - [x] **Step 5** — Add RGB camera link/joint to the URDF model
+- [x] **Step 6** — Add collision/inertial properties to URDF and launch robot in Gazebo (Gz Sim)
 
 ---
 
@@ -303,3 +304,68 @@ ros2 launch arduinobot_description display.launch.py
 - How to extend a URDF model with additional sensor links
 - When to use a fixed joint for mounted sensors
 - How to iteratively tune `<origin>` values for correct mesh alignment in RViz2
+
+---
+
+## Step 6 — Gazebo Simulation with Collision & Inertial Properties (`arduinobot_description`)
+
+### Goal
+Prepare the robot model for physics simulation by adding `<collision>` and `<inertial>` elements to every URDF link, then launch the robot inside Gazebo (Gz Sim) using a new launch file.
+
+### What I used
+- **Package:** `arduinobot_description`
+- **URDF/Xacro model:** `src/arduinobot_description/urdf/arduinobot.urdf.xacro`
+- **New launch file:** `src/arduinobot_description/launch/gazebo.launch.py`
+
+### URDF changes
+- Added a reusable `default_inertial` Xacro macro that attaches a `<inertial>` block (mass + diagonal inertia tensor) to any link:
+  ```xml
+  <xacro:macro name="default_inertial" params="mass">
+      <inertial>
+          <mass value="${mass}"/>
+          <inertia ixx="0.1" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.1"/>
+      </inertial>
+  </xacro:macro>
+  ```
+- Applied `<xacro:default_inertial mass="..."/>` to every link (`base_link`, `base_plate`, `forward_drive_arm`, `horizontal_arm`, `claw_support`, `gripper_right`, `gripper_left`, `rgb_camera`)
+- Added `<collision>` elements to every link, mirroring the visual geometry and origin
+
+### Launch file (`gazebo.launch.py`)
+The new launch file starts four processes:
+1. `robot_state_publisher` — publishes robot description with `use_sim_time: True`
+2. `gz_sim` (via `ros_gz_sim/launch/gz_sim.launch.py`) — starts Gazebo with an empty world (`-r empty.sdf`)
+3. `ros_gz_sim create` — spawns the robot into the world by subscribing to the `/robot_description` topic
+4. `ros_gz_bridge parameter_bridge` — bridges the `/clock` topic from Gazebo to ROS 2 (`gz.msgs.Clock` → `rosgraph_msgs/msg/Clock`)
+
+It also sets the `GZ_SIM_RESOURCE_PATH` environment variable so Gazebo can find the package's meshes.
+
+### `package.xml` changes
+Added two new exec dependencies:
+```xml
+<exec_depend>ros_gz_sim</exec_depend>
+<exec_depend>ros_gz_bridge</exec_depend>
+```
+
+### Build
+```bash
+cd /home/nima/arduinobot_ws
+colcon build
+```
+
+### Source environment
+```bash
+source /opt/ros/$ROS_DISTRO/setup.bash
+source /home/nima/arduinobot_ws/install/setup.bash
+```
+
+### Launch
+```bash
+ros2 launch arduinobot_description gazebo.launch.py
+```
+
+### What I learned in Step 6
+- Why `<collision>` and `<inertial>` elements are required for physics simulation in Gazebo
+- How to write a reusable Xacro macro for inertial properties
+- How to write a ROS 2 launch file that starts Gz Sim, spawns a robot from a topic, and bridges clock
+- How `GZ_SIM_RESOURCE_PATH` is used to help Gazebo locate mesh files
+- How `ros_gz_bridge` maps Gazebo Transport message types to ROS 2 message types
