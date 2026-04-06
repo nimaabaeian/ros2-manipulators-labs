@@ -18,6 +18,7 @@ I am documenting my progress in small, practical milestones.
 - [x] **Step 5** — Add RGB camera link/joint to the URDF model
 - [x] **Step 6** — Add collision/inertial properties to URDF and launch robot in Gazebo (Gz Sim)
 - [x] **Step 7** — Simulate an RGB camera sensor in Gazebo and stream images to ROS 2
+- [x] **Step 8** — Integrate `ros2_control` and control joints from slider GUI in simulation
 
 ---
 
@@ -25,6 +26,8 @@ I am documenting my progress in small, practical milestones.
 
 - `src/arduinobot_cpp` → C++ ROS 2 examples (`arduinobot_cpp_examples`)
 - `src/arduinobot_py` → Python ROS 2 examples (`arduinobot_py_examples`)
+- `src/arduinobot_description` → Robot URDF/Xacro, Gazebo, and RViz resources
+- `src/arduinobot_controller` → ROS 2 control setup, controllers config, and slider bridge nodes
 
 ---
 
@@ -490,3 +493,83 @@ ros2 topic hz /image_raw
 - How to bridge `sensor_msgs/Image` and `sensor_msgs/CameraInfo` from Gazebo Transport to ROS 2 using `ros_gz_bridge`
 - Why `use_sim_time: True` must be set on RViz2 when running alongside a Gazebo simulation
 - How to add an Image display in RViz2 and subscribe to a camera topic
+
+---
+
+## Step 8 — ROS 2 Control + Slider Joint Control in Simulation (`arduinobot_controller`)
+
+### Goal
+Integrate `ros2_control` into the robot model and command the arm/gripper joints in Gazebo using a slider GUI.
+
+### What I used
+- **New controller package:** `arduinobot_controller`
+  - Launch files:
+    - `src/arduinobot_controller/launch/controller.launch.py`
+    - `src/arduinobot_controller/launch/slider_controller.launch.py`
+  - Controllers config:
+    - `src/arduinobot_controller/config/arduinobot_controllers.yaml`
+  - Slider bridge nodes:
+    - `src/arduinobot_controller/src/slider_control.cpp`
+    - `src/arduinobot_controller/arduinobot_controller/slider_control.py`
+- **Description updates:** `arduinobot_description`
+  - Added `src/arduinobot_description/urdf/arduinobot_ros2_control.xacro`
+  - Added `src/arduinobot_description/urdf/arduinobot_gazebo.xacro`
+  - Updated `src/arduinobot_description/urdf/arduinobot.urdf.xacro` to include both control-related Xacro files
+
+### Controller setup
+The controllers are defined in `arduinobot_controllers.yaml`:
+- `joint_state_broadcaster` (`joint_state_broadcaster/JointStateBroadcaster`)
+- `arm_controller` (`joint_trajectory_controller/JointTrajectoryController`) for `joint_1`, `joint_2`, `joint_3`
+- `gripper_controller` (`joint_trajectory_controller/JointTrajectoryController`) for `joint_4`
+
+### URDF / Gazebo integration
+- `arduinobot_ros2_control.xacro` defines command/state interfaces for arm and gripper joints.
+- `arduinobot_gazebo.xacro` loads the ROS 2 control plugin in Gazebo:
+  - `ign_ros2_control` for ROS 2 Humble
+  - `gz_ros2_control` for ROS 2 Iron+ 
+- `gazebo.launch.py` passes `is_ignition` to Xacro based on `$ROS_DISTRO`.
+
+### Slider control flow
+`slider_controller.launch.py` starts:
+1. `controller.launch.py` to spawn controllers
+2. `joint_state_publisher_gui` with remap `/joint_states` → `/joint_commands`
+3. `slider_control` node
+
+The `slider_control` node subscribes to `/joint_commands` (`sensor_msgs/JointState`) and publishes trajectory commands to:
+- `/arm_controller/joint_trajectory`
+- `/gripper_controller/joint_trajectory`
+
+### Build
+```bash
+cd ~/arduinobot_ws
+colcon build --packages-select arduinobot_description arduinobot_controller
+```
+
+### Source environment
+```bash
+source /opt/ros/$ROS_DISTRO/setup.bash
+source ~/arduinobot_ws/install/setup.bash
+```
+
+### Run Step 8 (two terminals)
+Terminal 1 (Gazebo + robot):
+```bash
+ros2 launch arduinobot_description gazebo.launch.py
+```
+
+Terminal 2 (controllers + sliders):
+```bash
+ros2 launch arduinobot_controller slider_controller.launch.py
+```
+
+### Verify
+```bash
+ros2 control list_controllers
+ros2 topic list | grep joint_trajectory
+```
+
+### What I learned in Step 8
+- How to connect URDF/Xacro with `ros2_control` interfaces and Gazebo control plugins
+- How to configure and spawn trajectory controllers from `controller_manager`
+- How to remap GUI joint output and translate it into controller trajectory commands
+- How to keep a control stack modular by separating robot description and controller packages
