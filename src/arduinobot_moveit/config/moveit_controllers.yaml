@@ -1,0 +1,37 @@
+# MoveIt uses this configuration for controller management
+# Controller manager plugin selected by MoveIt.
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+  # List of controllers MoveIt can command.
+  controller_names:
+    - arm_controller
+    - gripper_controller
+
+  # Main arm trajectory controller (3-DOF arm joints).
+  arm_controller:
+    # Action topic namespace exposed by ros2_control.
+    action_ns: follow_joint_trajectory
+    # Controller interface type expected by MoveIt.
+    type: FollowJointTrajectory
+    # Preferred default controller for matching joints.
+    default: true
+    # Joints handled by this controller.
+    joints:
+      - joint_1
+      - joint_2
+      - joint_3
+
+  # Gripper/wrist trajectory controller (remaining joints).
+  gripper_controller:
+    # Action topic namespace exposed by ros2_control.
+    action_ns: follow_joint_trajectory
+    # Controller interface type expected by MoveIt.
+    type: FollowJointTrajectory
+    # Also marked default for its own joint set.
+    default: true
+    # Joints handled by this controller.
+    joints:
+      - joint_4
+      - joint_5
+    
