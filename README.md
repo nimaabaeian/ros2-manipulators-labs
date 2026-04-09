@@ -18,6 +18,7 @@ I am documenting my progress in small, practical milestones.
 - [x] **Step 5** — Gazebo RGB camera simulation
 - [x] **Step 6** — `ros2_control` slider joint control
 - [x] **Step 7** — Forward kinematics + TF2 + ROS 2 services
+- [x] **Step 8** — Inverse kinematics with MoveIt 2
 
 ---
 
@@ -27,6 +28,7 @@ I am documenting my progress in small, practical milestones.
 - `src/arduinobot_controller` → ROS 2 control setup, controllers config, and slider bridge nodes
 - `src/arduinobot_msgs` → Custom ROS 2 service interfaces for angle conversions
 - `src/arduinobot_utils` → Service server nodes for Euler/quaternion conversion utilities
+- `src/arduinobot_moveit` → MoveIt 2 configuration package for planning and inverse kinematics
 
 ---
 
@@ -508,3 +510,93 @@ ros2 service call /quaternion_to_euler arduinobot_msgs/srv/QuaternionToEuler "{x
 - How to expose orientation conversion as ROS 2 services for reuse by other nodes
 - How TF2 math utilities map between Euler (RPY) and quaternion representations
 - How FK output in TF and orientation conversions complement each other in manipulator workflows
+
+---
+
+## Step 8 — Inverse Kinematics with MoveIt 2 (`arduinobot_moveit`)
+
+### Goal
+Set up a dedicated MoveIt 2 config package for Arduinobot so I can solve inverse kinematics (IK), plan trajectories, and execute them through the existing ROS 2 control stack.
+
+### What I used
+- **New package:** `src/arduinobot_moveit`
+- **Launch file:** `src/arduinobot_moveit/launch/moveit.launch.py`
+- **MoveIt config files:**
+  - `src/arduinobot_moveit/config/arduinobot.srdf`
+  - `src/arduinobot_moveit/config/kinematics.yaml`
+  - `src/arduinobot_moveit/config/joint_limits.yaml`
+  - `src/arduinobot_moveit/config/moveit_controllers.yaml`
+  - `src/arduinobot_moveit/config/initial_positions.yaml`
+  - `src/arduinobot_moveit/config/pilz_cartesian_limits.yaml`
+
+### MoveIt 2 configuration highlights
+- Created semantic groups in `arduinobot.srdf`:
+  - `arm` group for arm joints (`joint_1`, `joint_2`, `joint_3`)
+  - `gripper` group for end-effector joints (`joint_4`, `joint_5`)
+- Added named `home` states for both groups.
+- Added SRDF collision-disable pairs for adjacent/never-colliding links.
+- Configured IK solver in `kinematics.yaml`:
+  - `kdl_kinematics_plugin/KDLKinematicsPlugin`
+  - `position_only_ik: true`
+  - search resolution and timeout parameters
+- Added velocity/acceleration limits in `joint_limits.yaml`.
+- Mapped MoveIt execution to ros2_control action controllers in `moveit_controllers.yaml`:
+  - `arm_controller` → `joint_1`, `joint_2`, `joint_3`
+  - `gripper_controller` → `joint_4`, `joint_5`
+
+### `moveit.launch.py` overview
+The launch file builds MoveIt config with `MoveItConfigsBuilder` and starts:
+1. `move_group` (planning + IK services)
+2. `rviz2` with robot description, semantic model, kinematics, and joint limits loaded
+
+It also exposes an `is_sim` launch argument (default `True`) and forwards it as `use_sim_time`.
+
+### `package.xml` and CMake updates
+- Added runtime dependencies: `ros2launch`, `rviz2`, `moveit_config_utils`
+- Installed `launch/` and `config/` directories in CMake
+
+### Build
+```bash
+cd ~/arduinobot_ws
+colcon build --packages-select arduinobot_moveit arduinobot_description arduinobot_controller
+```
+
+### Source environment
+```bash
+source /opt/ros/$ROS_DISTRO/setup.bash
+source ~/arduinobot_ws/install/setup.bash
+```
+
+### Run Step 8 (three terminals)
+Terminal 1 (Gazebo + robot):
+```bash
+ros2 launch arduinobot_description gazebo.launch.py
+```
+
+Terminal 2 (spawn ros2_control controllers):
+```bash
+ros2 launch arduinobot_controller controller.launch.py
+```
+
+Terminal 3 (MoveIt 2 + RViz):
+```bash
+ros2 launch arduinobot_moveit moveit.launch.py
+```
+
+### Verify IK/Planning in RViz
+In the MoveIt RViz panel:
+1. Select the planning group (`arm`)
+2. Move the interactive goal marker to a reachable target
+3. Click **Plan** then **Execute**
+
+You can also validate that MoveIt is connected to the expected controllers:
+```bash
+ros2 action list | grep follow_joint_trajectory
+```
+
+### What I learned in Step 8
+- How to create a standalone MoveIt 2 config package from a custom robot model
+- How SRDF groups and states define planning/IK context for manipulator joints
+- How to configure KDL IK parameters for practical planning behavior
+- How MoveIt's trajectory execution layer integrates with existing ros2_control controllers
+- How to run Gazebo + controllers + MoveIt together for end-to-end IK and trajectory execution
