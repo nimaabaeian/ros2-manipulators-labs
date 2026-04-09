@@ -11,109 +11,23 @@ Course link: https://www.udemy.com/course/robotics-and-ros-2-learn-by-doing-mani
 
 I am documenting my progress in small, practical milestones.
 
-- [x] **Step 1** — Simple publisher and subscriber in C++ and Python
-- [x] **Step 2** — Robot model in URDF/Xacro (`arduinobot_description`)
-- [x] **Step 3** — Simple parameter in C++ and Python
-- [x] **Step 4** — RViz visualization with a custom launch file
-- [x] **Step 5** — Add RGB camera link/joint to the URDF model
-- [x] **Step 6** — Add collision/inertial properties to URDF and launch robot in Gazebo (Gz Sim)
-- [x] **Step 7** — Simulate an RGB camera sensor in Gazebo and stream images to ROS 2
-- [x] **Step 8** — Integrate `ros2_control` and control joints from slider GUI in simulation
+- [x] **Step 1** — URDF/Xacro robot description
+- [x] **Step 2** — RViz custom launch setup
+- [x] **Step 3** — Add RGB camera to URDF
+- [x] **Step 4** — Gazebo collision + inertial setup
+- [x] **Step 5** — Gazebo RGB camera simulation
+- [x] **Step 6** — `ros2_control` slider joint control
 
 ---
 
 ## Workspace Structure
 
-- `src/arduinobot_cpp` → C++ ROS 2 examples (`arduinobot_cpp_examples`)
-- `src/arduinobot_py` → Python ROS 2 examples (`arduinobot_py_examples`)
 - `src/arduinobot_description` → Robot URDF/Xacro, Gazebo, and RViz resources
 - `src/arduinobot_controller` → ROS 2 control setup, controllers config, and slider bridge nodes
 
 ---
 
-## Step 1 — Simple Publisher and Subscriber (`arduinobot_cpp` and `arduinobot_py`)
-
-### Goal
-Understand how to create and run basic ROS 2 publisher/subscriber nodes in both C++ and Python.
-
-### What I used
-- **C++ package:** `arduinobot_cpp_examples`
-  - Executables: `simple_publisher`, `simple_subscriber`
-  - Sources:
-    - `src/arduinobot_cpp/src/simple_publisher.cpp`
-    - `src/arduinobot_cpp/src/simple_subscriber.cpp`
-- **Python package:** `arduinobot_py_examples`
-  - Entry points: `simple_publisher`, `simple_subscriber`
-  - Sources:
-    - `src/arduinobot_py/arduinobot_py_examples/simple_publisher.py`
-    - `src/arduinobot_py/arduinobot_py_examples/simple_subscriber.py`
-
-### Build
-From workspace root:
-
-```bash
-cd /home/nima/arduinobot_ws
-colcon build
-```
-
-### Source environment
-
-```bash
-source /opt/ros/$ROS_DISTRO/setup.bash
-source /home/nima/arduinobot_ws/install/setup.bash
-```
-
-### Run the C++ publisher/subscriber (in two terminals)
-
-Terminal 1:
-
-```bash
-ros2 run arduinobot_cpp_examples simple_subscriber
-```
-
-Terminal 2:
-
-```bash
-ros2 run arduinobot_cpp_examples simple_publisher
-```
-
-### Run the Python publisher/subscriber (in two terminals)
-
-Terminal 1:
-
-```bash
-ros2 run arduinobot_py_examples simple_subscriber
-```
-
-Terminal 2:
-
-```bash
-ros2 run arduinobot_py_examples simple_publisher
-```
-
-### Verify topic output
-In another terminal:
-
-```bash
-source /opt/ros/$ROS_DISTRO/setup.bash
-source /home/nima/arduinobot_ws/install/setup.bash
-ros2 topic list
-ros2 topic echo /chatter
-```
-
-### What I learned in Step 1
-- How ROS 2 publisher/subscriber nodes are structured in C++ (`rclcpp`) and Python (`rclpy`)
-- How to build packages with `colcon build`
-- How to run nodes with `ros2 run`
-- How to inspect topic communication using `ros2 topic` tools
-
-### Notes / Reflection
-- C++ and Python implementations follow the same ROS 2 publish/subscribe communication concept.
-- The main difference is syntax and package setup (`CMakeLists.txt` vs `setup.py`).
-
----
-
-## Step 2 — Robot Description in URDF/Xacro (`arduinobot_description`)
+## Step 1 — URDF/Xacro Robot Description (`arduinobot_description`)
 
 ### Goal
 Create the Arduinobot kinematic model using URDF/Xacro so it can be visualized and used in simulation/planning workflows.
@@ -150,71 +64,14 @@ source /home/nima/arduinobot_ws/install/setup.bash
 ros2 launch urdf_tutorial display.launch.py model:=/home/nima/arduinobot_ws/src/arduinobot_description/urdf/arduinobot.urdf.xacro
 ```
 
-### What I learned in Step 2
+### What I learned in Step 1
 - How to structure a robot model with links and joints in URDF/Xacro
 - How to use Xacro properties to keep limits and constants maintainable
 - How mimic joints simplify synchronized gripper motion
 
 ---
 
-## Step 3 — Simple Parameter (`arduinobot_cpp` and `arduinobot_py`)
-
-### Goal
-Understand how to declare and update ROS 2 node parameters in both C++ and Python.
-
-### What I used
-- **C++ package:** `arduinobot_cpp_examples`
-  - Executable: `simple_parameter`
-  - Source: `src/arduinobot_cpp/src/simple_parameter.cpp`
-- **Python package:** `arduinobot_py_examples`
-  - Entry point: `simple_parameter`
-  - Source: `src/arduinobot_py/arduinobot_py_examples/simple_parameter.py`
-
-### Build
-From workspace root:
-
-```bash
-cd /home/nima/arduinobot_ws
-colcon build
-```
-
-### Source environment
-
-```bash
-source /opt/ros/$ROS_DISTRO/setup.bash
-source /home/nima/arduinobot_ws/install/setup.bash
-```
-
-### Run the C++ simple parameter node
-
-```bash
-ros2 run arduinobot_cpp_examples simple_parameter
-```
-
-### Run the Python simple parameter node
-
-```bash
-ros2 run arduinobot_py_examples simple_parameter
-```
-
-### Verify and change parameters
-Run these commands while one `simple_parameter` node is active:
-
-```bash
-ros2 param list /simple_parameter
-ros2 param get /simple_parameter simple_int_param
-ros2 param set /simple_parameter simple_int_param 42
-ros2 param set /simple_parameter simple_string_param "Nima"
-```
-
-### What I learned in Step 3
-- How to declare parameters with default values in C++ and Python
-- How to react to runtime parameter updates via callbacks
-- How to inspect and modify parameters using `ros2 param` CLI
-
----
-
-## Step 4 — RViz Visualization with a Custom Launch File (`arduinobot_description`)
+## Step 2 — RViz Custom Launch Setup (`arduinobot_description`)
 
 ### Goal
 Replace the external `urdf_tutorial` launcher with a custom ROS 2 launch file that starts `robot_state_publisher`, `joint_state_publisher_gui`, and RViz2 with a pre-configured display, all in one command.
@@ -263,7 +120,7 @@ To visualize a different model:
 ros2 launch arduinobot_description display.launch.py model:=/path/to/your.urdf.xacro
 ```
 
-### What I learned in Step 4
+### What I learned in Step 2
 - How to write a ROS 2 Python launch file from scratch
 - How to use `DeclareLaunchArgument` and `LaunchConfiguration` for flexible, overridable arguments
 - How to start `robot_state_publisher` programmatically with a Xacro-processed description
@@ -273,7 +130,7 @@ ros2 launch arduinobot_description display.launch.py model:=/path/to/your.urdf.x
 
 ---
 
-## Step 5 — Assignment: Add RGB Camera to URDF (`arduinobot_description`)
+## Step 3 — Add RGB Camera to URDF (`arduinobot_description`)
 
 ### Goal
 Extend the robot model by adding an RGB camera as a new link and connecting it with a new joint.
@@ -304,14 +161,14 @@ ros2 launch arduinobot_description display.launch.py
 - `src/arduinobot_description/urdf/arduinobot.urdf.xacro`
 - `src/arduinobot_description/meshes/pi_camera.STL`
 
-### What I learned in Step 5
+### What I learned in Step 3
 - How to extend a URDF model with additional sensor links
 - When to use a fixed joint for mounted sensors
 - How to iteratively tune `<origin>` values for correct mesh alignment in RViz2
 
 ---
 
-## Step 6 — Gazebo Simulation with Collision & Inertial Properties (`arduinobot_description`)
+## Step 4 — Gazebo Collision & Inertial Setup (`arduinobot_description`)
 
 ### Goal
 Prepare the robot model for physics simulation by adding `<collision>` and `<inertial>` elements to every URDF link, then launch the robot inside Gazebo (Gz Sim) using a new launch file.
@@ -367,7 +224,7 @@ source /home/nima/arduinobot_ws/install/setup.bash
 ros2 launch arduinobot_description gazebo.launch.py
 ```
 
-### What I learned in Step 6
+### What I learned in Step 4
 - Why `<collision>` and `<inertial>` elements are required for physics simulation in Gazebo
 - How to write a reusable Xacro macro for inertial properties
 - How to write a ROS 2 launch file that starts Gz Sim, spawns a robot from a topic, and bridges clock
@@ -376,7 +233,7 @@ ros2 launch arduinobot_description gazebo.launch.py
 
 ---
 
-## Step 7 — Simulate RGB Camera Sensor in Gazebo (`arduinobot_description`)
+## Step 5 — Gazebo RGB Camera Simulation (`arduinobot_description`)
 
 ### Goal
 Activate Gazebo's camera sensor simulation on the `rgb_camera` link so it publishes a live video stream that can be consumed by ROS 2 nodes and visualized in RViz2.
@@ -487,7 +344,7 @@ Verify the topic is streaming at ~30 Hz:
 ros2 topic hz /image_raw
 ```
 
-### What I learned in Step 7
+### What I learned in Step 5
 - How Gazebo's `gz-sim-sensors-system` plugin enables actual sensor simulation (without it sensors produce no output)
 - How to configure a simulated camera with a specific resolution, FoV, FPS, and topic name using the `<gazebo>` and `<sensor>` URDF tags
 - How to bridge `sensor_msgs/Image` and `sensor_msgs/CameraInfo` from Gazebo Transport to ROS 2 using `ros_gz_bridge`
@@ -496,7 +353,7 @@ ros2 topic hz /image_raw
 
 ---
 
-## Step 8 — ROS 2 Control + Slider Joint Control in Simulation (`arduinobot_controller`)
+## Step 6 — ROS 2 Control Slider Joint Control (`arduinobot_controller`)
 
 ### Goal
 Integrate `ros2_control` into the robot model and command the arm/gripper joints in Gazebo using a slider GUI.
@@ -551,7 +408,7 @@ source /opt/ros/$ROS_DISTRO/setup.bash
 source ~/arduinobot_ws/install/setup.bash
 ```
 
-### Run Step 8 (two terminals)
+### Run Step 6 (two terminals)
 Terminal 1 (Gazebo + robot):
 ```bash
 ros2 launch arduinobot_description gazebo.launch.py
@@ -568,7 +425,7 @@ ros2 control list_controllers
 ros2 topic list | grep joint_trajectory
 ```
 
-### What I learned in Step 8
+### What I learned in Step 6
 - How to connect URDF/Xacro with `ros2_control` interfaces and Gazebo control plugins
 - How to configure and spawn trajectory controllers from `controller_manager`
 - How to remap GUI joint output and translate it into controller trajectory commands
