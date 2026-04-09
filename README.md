@@ -17,6 +17,7 @@ I am documenting my progress in small, practical milestones.
 - [x] **Step 4** — Gazebo collision + inertial setup
 - [x] **Step 5** — Gazebo RGB camera simulation
 - [x] **Step 6** — `ros2_control` slider joint control
+- [x] **Step 7** — Forward kinematics + TF2 + ROS 2 services
 
 ---
 
@@ -24,6 +25,8 @@ I am documenting my progress in small, practical milestones.
 
 - `src/arduinobot_description` → Robot URDF/Xacro, Gazebo, and RViz resources
 - `src/arduinobot_controller` → ROS 2 control setup, controllers config, and slider bridge nodes
+- `src/arduinobot_msgs` → Custom ROS 2 service interfaces for angle conversions
+- `src/arduinobot_utils` → Service server nodes for Euler/quaternion conversion utilities
 
 ---
 
@@ -430,3 +433,78 @@ ros2 topic list | grep joint_trajectory
 - How to configure and spawn trajectory controllers from `controller_manager`
 - How to remap GUI joint output and translate it into controller trajectory commands
 - How to keep a control stack modular by separating robot description and controller packages
+
+---
+
+## Step 7 — Forward Kinematics, TF2 Library, and ROS 2 Services (`arduinobot_msgs`, `arduinobot_utils`)
+
+### Goal
+Practice forward-kinematics-related orientation handling by converting between Euler angles and quaternions via ROS 2 services, using TF2 math utilities.
+
+### What I used
+- **Interfaces package:** `src/arduinobot_msgs`
+  - `src/arduinobot_msgs/srv/EulerToQuaternion.srv`
+  - `src/arduinobot_msgs/srv/QuaternionToEuler.srv`
+- **Utilities package:** `src/arduinobot_utils`
+  - Python service node: `src/arduinobot_utils/arduinobot_utils/angle_conversion.py`
+  - C++ reference implementation: `src/arduinobot_utils/src/angle_conversion.cpp`
+- **TF frame check artifacts:**
+  - `frames_2026-04-09_13.39.45.gv`
+  - `frames_2026-04-09_13.39.45.pdf`
+
+### Service interfaces
+Two custom services were added:
+
+1. `EulerToQuaternion`
+   - Request: `roll`, `pitch`, `yaw`
+   - Response: `x`, `y`, `z`, `w`
+
+2. `QuaternionToEuler`
+   - Request: `x`, `y`, `z`, `w`
+   - Response: `roll`, `pitch`, `yaw`
+
+### TF2 and conversion logic
+- In C++, conversion uses the TF2 library (`tf2::Quaternion`, `tf2::Matrix3x3`, `setRPY`, `getRPY`).
+- In Python, conversion uses `tf_transformations` (`quaternion_from_euler`, `euler_from_quaternion`).
+- The service server exposes two endpoints:
+  - `/euler_to_quaternion`
+  - `/quaternion_to_euler`
+
+### Forward kinematics context
+- Robot forward kinematics is reflected in the TF tree published by `robot_state_publisher` from URDF joint states.
+- The generated TF graph (`frames_2026-04-09_13.39.45.gv/.pdf`) confirms the transform chain from `world` → `base_link` → arm links → gripper links.
+- Step 7 focuses on orientation representation within that FK pipeline by converting between RPY and quaternion forms.
+
+### Build
+```bash
+cd ~/arduinobot_ws
+colcon build --packages-select arduinobot_msgs arduinobot_utils
+```
+
+### Source environment
+```bash
+source /opt/ros/$ROS_DISTRO/setup.bash
+source ~/arduinobot_ws/install/setup.bash
+```
+
+### Run service server
+```bash
+ros2 run arduinobot_utils angle_conversion.py
+```
+
+### Test services
+Euler → Quaternion:
+```bash
+ros2 service call /euler_to_quaternion arduinobot_msgs/srv/EulerToQuaternion "{roll: 0.0, pitch: 0.0, yaw: 1.57}"
+```
+
+Quaternion → Euler:
+```bash
+ros2 service call /quaternion_to_euler arduinobot_msgs/srv/QuaternionToEuler "{x: 0.0, y: 0.0, z: 0.707, w: 0.707}"
+```
+
+### What I learned in Step 7
+- How to define and generate custom ROS 2 service interfaces in a dedicated messages package
+- How to expose orientation conversion as ROS 2 services for reuse by other nodes
+- How TF2 math utilities map between Euler (RPY) and quaternion representations
+- How FK output in TF and orientation conversions complement each other in manipulator workflows
