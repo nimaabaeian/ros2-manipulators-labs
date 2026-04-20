@@ -11,6 +11,7 @@ find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "action/ArduinobotTask.action"
   "srv/EulerToQuaternion.srv"
   "srv/QuaternionToEuler.srv"
   DEPENDENCIES std_msgs
