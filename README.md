@@ -19,6 +19,7 @@ I am documenting my progress in small, practical milestones.
 - [x] **Step 6** — `ros2_control` slider joint control
 - [x] **Step 7** — Forward kinematics + TF2 + ROS 2 services
 - [x] **Step 8** — Inverse kinematics with MoveIt 2
+- [x] **Step 9** — Remote task control with ROS 2 actions (C++/Python + Alexa bridge)
 
 ---
 
@@ -26,9 +27,10 @@ I am documenting my progress in small, practical milestones.
 
 - `src/arduinobot_description` → Robot URDF/Xacro, Gazebo, and RViz resources
 - `src/arduinobot_controller` → ROS 2 control setup, controllers config, and slider bridge nodes
-- `src/arduinobot_msgs` → Custom ROS 2 service interfaces for angle conversions
+- `src/arduinobot_msgs` → Custom ROS 2 interfaces (services + actions)
 - `src/arduinobot_utils` → Service server nodes for Euler/quaternion conversion utilities
 - `src/arduinobot_moveit` → MoveIt 2 configuration package for planning and inverse kinematics
+- `src/arduinobot_remote` → Remote action server(s) and Alexa-triggered task client
 
 ---
 
@@ -600,3 +602,110 @@ ros2 action list | grep follow_joint_trajectory
 - How to configure KDL IK parameters for practical planning behavior
 - How MoveIt's trajectory execution layer integrates with existing ros2_control controllers
 - How to run Gazebo + controllers + MoveIt together for end-to-end IK and trajectory execution
+
+---
+
+## Step 9 — Remote Task Control with ROS 2 Actions (`arduinobot_remote` + `arduinobot_msgs`)
+
+### Goal
+Add a remote-command layer on top of the existing MoveIt/control stack using a custom ROS 2 action, with both C++ and Python task-server implementations and an Alexa bridge client.
+
+### What I used
+- **Remote package:** `src/arduinobot_remote`
+  - C++ server: `src/arduinobot_remote/src/task_server.cpp`
+  - Python server: `src/arduinobot_remote/arduinobot_remote/task_server.py`
+  - Alexa bridge: `src/arduinobot_remote/arduinobot_remote/alexa_interface.py`
+  - Launcher: `src/arduinobot_remote/launch/remote_interface.launch.py`
+- **Interfaces package update:** `src/arduinobot_msgs`
+  - New action: `src/arduinobot_msgs/action/ArduinobotTask.action`
+
+### Action interface
+`ArduinobotTask.action` defines:
+- **Goal:** `int64 task_number`
+- **Result:** `bool success`
+- **Feedback:** `string current_status`
+
+Task mapping used by server implementations:
+- `0` → home/open posture
+- `1` → pick posture
+- `2` → sleep posture
+
+### Launch and execution flow
+`remote_interface.launch.py` starts one task server under `/task_server`:
+- **C++ server** (`task_server_node`) by default (`use_python:=False`)
+- **Python server** (`task_server.py`) when `use_python:=True`
+
+Both servers consume `ArduinobotTask` goals and execute joint-space plans for `arm` and `gripper` via MoveIt.
+
+### Build
+```bash
+cd ~/arduinobot_ws
+colcon build --packages-select arduinobot_msgs arduinobot_remote
+```
+
+### Source environment
+```bash
+source /opt/ros/$ROS_DISTRO/setup.bash
+source ~/arduinobot_ws/install/setup.bash
+```
+
+### Run Step 9 (recommended with existing Step 8 stack)
+Terminal 1 (Gazebo + robot):
+```bash
+ros2 launch arduinobot_description gazebo.launch.py
+```
+
+Terminal 2 (ros2_control controllers):
+```bash
+ros2 launch arduinobot_controller controller.launch.py
+```
+
+Terminal 3 (MoveIt):
+```bash
+ros2 launch arduinobot_moveit moveit.launch.py
+```
+
+Terminal 4 (remote action server):
+```bash
+ros2 launch arduinobot_remote remote_interface.launch.py use_python:=False
+```
+
+To run the Python task server instead:
+```bash
+ros2 launch arduinobot_remote remote_interface.launch.py use_python:=True
+```
+
+### Test the action interface
+Check action availability:
+```bash
+ros2 action list | grep task_server
+```
+
+Send a goal (example: pick posture):
+```bash
+ros2 action send_goal /task_server arduinobot_msgs/action/ArduinobotTask "{task_number: 1}"
+```
+
+Try home and sleep:
+```bash
+ros2 action send_goal /task_server arduinobot_msgs/action/ArduinobotTask "{task_number: 0}"
+ros2 action send_goal /task_server arduinobot_msgs/action/ArduinobotTask "{task_number: 2}"
+```
+
+### Optional Alexa bridge
+`alexa_interface.py` exposes Alexa intents and forwards them as `ArduinobotTask` goals to `/task_server`:
+- Launch/Wake → task `0`
+- Pick → task `1`
+- Sleep → task `2`
+
+Run:
+```bash
+ros2 run arduinobot_remote alexa_interface.py
+```
+
+### What I learned in Step 9
+- How to define and generate a custom ROS 2 action interface in a shared messages package
+- How to implement equivalent action servers in both C++ (`rclcpp_action`) and Python (`rclpy.action`)
+- How to use launch conditions (`IfCondition` / `UnlessCondition`) to switch implementations with one launch file
+- How to trigger manipulator behaviors through action goals rather than direct topic/service calls
+- How to bridge voice-intent style commands into ROS 2 actions for higher-level task control

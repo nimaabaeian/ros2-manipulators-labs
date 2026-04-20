@@ -2,9 +2,7 @@
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include "arduinobot_msgs/action/arduinobot_task.hpp"
-#include <moveit/move_group_interface/move_group_interface.hpp>
-
-#include <cinttypes>
+#include <moveit/move_group_interface/move_group_interface.h>
 
 #include <memory>
 
@@ -35,7 +33,7 @@ private:
       const rclcpp_action::GoalUUID& uuid,
       std::shared_ptr<const arduinobot_msgs::action::ArduinobotTask::Goal> goal)
   {
-    RCLCPP_INFO(get_logger(), "Received goal request with id %" PRId64, goal->task_number);
+    RCLCPP_INFO(get_logger(), "Received goal request with id %d", goal->task_number);
     (void)uuid;
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   }
@@ -100,7 +98,7 @@ private:
 
     bool arm_within_bounds = arm_move_group_->setJointValueTarget(arm_joint_goal_);
     bool gripper_within_bounds = gripper_move_group_->setJointValueTarget(gripper_joint_goal_);
-    if (!arm_within_bounds || !gripper_within_bounds)
+    if (!arm_within_bounds | !gripper_within_bounds)
     {
       RCLCPP_WARN(get_logger(),
                   "Target joint position(s) were outside of limits, but we will plan and clamp to the limits ");
