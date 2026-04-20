@@ -701,6 +701,8 @@ ros2 action send_goal /task_server arduinobot_msgs/action/ArduinobotTask "{task_
 - Pick → task `1`
 - Sleep → task `2`
 
+This standalone command reflects the Step 9 workflow; from Step 10 onward, Alexa is launched automatically via `remote_interface.launch.py`.
+
 Run:
 ```bash
 ros2 run arduinobot_remote alexa_interface.py
