@@ -20,6 +20,7 @@ I am documenting my progress in small, practical milestones.
 - [x] **Step 7** — Forward kinematics + TF2 + ROS 2 services
 - [x] **Step 8** — Inverse kinematics with MoveIt 2
 - [x] **Step 9** — Remote task control with ROS 2 actions (C++/Python + Alexa bridge)
+- [x] **Step 10** — Integrate Alexa bridge into launch flow + remote task server refinements
 
 ---
 
@@ -31,6 +32,8 @@ I am documenting my progress in small, practical milestones.
 - `src/arduinobot_utils` → Service server nodes for Euler/quaternion conversion utilities
 - `src/arduinobot_moveit` → MoveIt 2 configuration package for planning and inverse kinematics
 - `src/arduinobot_remote` → Remote action server(s) and Alexa-triggered task client
+- `src/arduinobot_bringup` → Unified bringup launch package for starting the full robot stack
+- `src/arduinobot_firmware` → Serial communication bridge and firmware-side ROS 2 integration helpers
 
 ---
 
@@ -709,3 +712,43 @@ ros2 run arduinobot_remote alexa_interface.py
 - How to use launch conditions (`IfCondition` / `UnlessCondition`) to switch implementations with one launch file
 - How to trigger manipulator behaviors through action goals rather than direct topic/service calls
 - How to bridge voice-intent style commands into ROS 2 actions for higher-level task control
+
+---
+
+## Step 10 — Integrated Alexa Launch + Task Server Refinements (`arduinobot_remote`)
+
+### Goal
+Make remote operation more practical by launching the Alexa bridge automatically with the remote interface and clean up task-server implementation details.
+
+### What changed in this step
+- **Launch integration:** `src/arduinobot_remote/launch/remote_interface.launch.py` now starts `alexa_interface.py` as part of the same launch description.
+- **Server selection remains unchanged:** `use_python:=False` still runs the C++ task server and `use_python:=True` runs the Python task server.
+- **C++ task server updates:** `src/arduinobot_remote/src/task_server.cpp` was updated in logging/include details during this refinement pass.
+
+### Run Step 10
+With the Step 8 stack running (Gazebo + controllers + MoveIt), start remote interface:
+
+```bash
+ros2 launch arduinobot_remote remote_interface.launch.py use_python:=False
+```
+
+Or use the Python task server:
+
+```bash
+ros2 launch arduinobot_remote remote_interface.launch.py use_python:=True
+```
+
+No separate Alexa bridge command is needed when using `remote_interface.launch.py` in Step 10, because it is launched automatically.
+
+### Verify
+Check that the task action and related nodes are available:
+
+```bash
+ros2 action list | grep task_server
+ros2 node list | grep -E "task_server|alexa"
+```
+
+### What I learned in Step 10
+- How to bundle task server + voice bridge into one launch workflow for simpler runtime operations
+- How to keep launch-time flexibility (C++ vs Python server) while adding always-on support nodes
+- How small launch-architecture changes can reduce manual startup steps and operator error

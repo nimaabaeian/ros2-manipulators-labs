@@ -3,9 +3,9 @@
 <package format="3">
   <name>arduinobot_msgs</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Custom ROS 2 interfaces (services and actions) for Arduinobot.</description>
   <maintainer email="abaeiannima@gmail.com">nima</maintainer>
-  <license>TODO: License declaration</license>
+  <license>Apache 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
